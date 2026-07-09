@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Daily Flight Trend</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>body { font-family: sans-serif; background: #f8f9fa; padding: 24px; }</style>
+</head>
+<body>
+  <div id="chart" style="width:100%;max-width:860px;margin:auto;"></div>
+  <script>
+    Plotly.newPlot('chart', [{
+      type: 'scatter',
+      mode: 'lines+markers',
+      x: ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"],
+      y: [457, 722, 721, 787, 288],
+      line: { color: '#2563eb', width: 3 },
+      marker: { size: 8, color: '#2563eb' },
+      text: [457, 722, 721, 787, 288],
+      textposition: 'top center',
+      mode: 'lines+markers+text',
+    }], {
+      title: { text: 'Daily Number of Flights — Ben Gurion Airport (Jul 6–10, 2026)', font: { size: 18 } },
+      xaxis: { title: 'Date', tickformat: '%a %b %d' },
+      yaxis: { title: 'Number of Flights', rangemode: 'tozero' },
+      plot_bgcolor: '#ffffff',
+      paper_bgcolor: '#f8f9fa',
+      margin: { t: 70, l: 60, r: 30, b: 60 }
+    }, { responsive: true });
+  </script>
+</body>
+</html>

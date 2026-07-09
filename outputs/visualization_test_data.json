@@ -1,0 +1,51 @@
+{
+  "reference_date": "2026-07-08",
+  "pie": {
+    "arrivals_vs_departures_week": {
+      "departures": 2,
+      "arrivals": 1
+    },
+    "status_today": {
+      "SCHEDULED": 1
+    },
+    "month_on_time_delayed_cancelled": {
+      "on_time": 1,
+      "delayed": 1,
+      "cancelled": 1
+    }
+  },
+  "stacked": {
+    "arrival_vs_departure_by_airline_week": {
+      "AIR FRANCE": {
+        "arrivals": 0,
+        "departures": 1
+      },
+      "BRITISH AIRWAYS": {
+        "arrivals": 1,
+        "departures": 0
+      },
+      "VUELING": {
+        "arrivals": 0,
+        "departures": 1
+      }
+    },
+    "status_by_terminal_today": {
+      "1.0": {
+        "SCHEDULED": 1
+      }
+    }
+  },
+  "line": {
+    "hourly_today": {
+      "9": 1
+    },
+    "daily_last_14": {
+      "2026-06-30": 1,
+      "2026-07-07": 2,
+      "2026-07-08": 1
+    },
+    "delayed_daily_month": {
+      "2026-07-07": 1
+    }
+  }
+}

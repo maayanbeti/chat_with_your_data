@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visualization Test Charts</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; background: #f6f8fb; color: #1f2937; }
+    h1 { margin: 0 0 6px 0; }
+    .sub { margin-bottom: 18px; color: #475569; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+    .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; }
+    .chart { height: 300px; }
+    .wide .chart { height: 340px; }
+    .kpi-card { padding: 16px; }
+    .kpi-title { color: #475569; font-size: 14px; margin-bottom: 6px; }
+    .kpi-value { font-size: 30px; font-weight: 700; line-height: 1.1; }
+    .kpi-delta { margin-top: 6px; font-size: 14px; font-weight: 600; }
+    .delta-red { color: #b91c1c; }
+    .delta-green { color: #15803d; }
+    .kpi-note { margin-top: 6px; color: #64748b; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Flight Visualization Test Charts</h1>
+  <div class="sub">Reference date: 2026-07-08 (from data/flights.csv)</div>
+
+  <h2>Donut</h2>
+  <div class="grid">
+    <div class="card"><div id="pie1" class="chart"></div></div>
+    <div class="card"><div id="pie2" class="chart"></div></div>
+    <div class="card"><div id="pie3" class="chart"></div></div>
+  </div>
+
+  <h2>KPI</h2>
+  <div class="grid">
+    <div class="card kpi-card">
+      <div class="kpi-title">Cancellation Rate Today</div>
+      <div id="kpiRate" class="kpi-value"></div>
+      <div id="kpiDelta" class="kpi-delta"></div>
+      <div class="kpi-note">Compared to yesterday</div>
+    </div>
+  </div>
+
+  <h2>Stacked Bar</h2>
+  <div class="grid">
+    <div class="card wide"><div id="stack1" class="chart"></div></div>
+    <div class="card wide"><div id="stack2" class="chart"></div></div>
+  </div>
+
+  <h2>Line</h2>
+  <div class="grid">
+    <div class="card"><div id="line1" class="chart"></div></div>
+    <div class="card"><div id="line2" class="chart"></div></div>
+    <div class="card"><div id="line3" class="chart"></div></div>
+  </div>
+
+<script>
+const data = {"reference_date": "2026-07-08", "pie": {"arrivals_vs_departures_week": {"departures": 2, "arrivals": 1}, "status_today": {"SCHEDULED": 1}, "month_on_time_delayed_cancelled": {"on_time": 1, "delayed": 1, "cancelled": 1}}, "stacked": {"arrival_vs_departure_by_airline_week": {"AIR FRANCE": {"arrivals": 0, "departures": 1}, "BRITISH AIRWAYS": {"arrivals": 1, "departures": 0}, "VUELING": {"arrivals": 0, "departures": 1}}, "status_by_terminal_today": {"1.0": {"SCHEDULED": 1}}}, "line": {"hourly_today": {"9": 1}, "daily_last_14": {"2026-06-30": 1, "2026-07-07": 2, "2026-07-08": 1}, "delayed_daily_month": {"2026-07-07": 1}}, "kpi": {"cancellation_rate_today": 0.0, "cancellation_rate_yesterday": 50.0, "metric_polarity": "negative_metric"}};
+
+function keys(obj) { return Object.keys(obj || {}); }
+function vals(obj) { return keys(obj).map(k => obj[k]); }
+
+Plotly.newPlot('pie1', [{
+  type: 'pie',
+  labels: keys(data.pie.arrivals_vs_departures_week),
+  values: vals(data.pie.arrivals_vs_departures_week),
+  hole: 0.55,
+  texttemplate: '%{label}: %{value} (%{percent})',
+  textposition: 'inside'
+}], { title: 'Arrivals vs Departures (Week)' }, {displayModeBar: false});
+
+Plotly.newPlot('pie2', [{
+  type: 'pie',
+  labels: keys(data.pie.status_today),
+  values: vals(data.pie.status_today),
+  hole: 0.55,
+  texttemplate: '%{label}: %{value} (%{percent})',
+  textposition: 'inside'
+}], { title: 'Status Distribution (Today)' }, {displayModeBar: false});
+
+Plotly.newPlot('pie3', [{
+  type: 'pie',
+  labels: keys(data.pie.month_on_time_delayed_cancelled),
+  values: vals(data.pie.month_on_time_delayed_cancelled),
+  hole: 0.55,
+  texttemplate: '%{label}: %{value} (%{percent})',
+  textposition: 'inside'
+}], { title: 'On-Time vs Delayed vs Cancelled (Month)' }, {displayModeBar: false});
+
+const s1 = data.stacked.arrival_vs_departure_by_airline_week;
+const s1x = keys(s1);
+Plotly.newPlot('stack1', [
+  {type: 'bar', name: 'Arrivals', x: s1x, y: s1x.map(k => s1[k].arrivals || 0)},
+  {type: 'bar', name: 'Departures', x: s1x, y: s1x.map(k => s1[k].departures || 0)}
+], {barmode: 'stack', title: 'Arrival vs Departure by Airline (Week)'}, {displayModeBar: false});
+
+const s2 = data.stacked.status_by_terminal_today;
+const s2x = keys(s2);
+const allStatuses = Array.from(new Set(s2x.flatMap(k => Object.keys(s2[k] || {}))));
+const traces = allStatuses.map(st => ({
+  type: 'bar',
+  name: st,
+  x: s2x,
+  y: s2x.map(k => (s2[k] && s2[k][st]) ? s2[k][st] : 0)
+}));
+Plotly.newPlot('stack2', traces, {barmode: 'stack', title: 'Status by Terminal (Today)'}, {displayModeBar: false});
+
+const l1 = data.line.hourly_today;
+Plotly.newPlot('line1', [{
+  type: 'scatter', mode: 'lines+markers',
+  x: keys(l1), y: vals(l1)
+}], { title: 'Flights per Hour (Today)', xaxis: {title:'Hour'}, yaxis: {title:'Flights', rangemode: 'tozero'} }, {displayModeBar: false});
+
+const l2 = data.line.daily_last_14;
+Plotly.newPlot('line2', [{
+  type: 'scatter', mode: 'lines+markers',
+  x: keys(l2), y: vals(l2)
+}], { title: 'Daily Trend (Last 14 Days)', xaxis: {title:'Date'}, yaxis: {title:'Flights', rangemode: 'tozero'} }, {displayModeBar: false});
+
+const l3 = data.line.delayed_daily_month;
+Plotly.newPlot('line3', [{
+  type: 'scatter', mode: 'lines+markers',
+  x: keys(l3), y: vals(l3)
+}], { title: 'Delayed Flights Over Time (Month)', xaxis: {title:'Date'}, yaxis: {title:'Delayed Flights', rangemode: 'tozero'} }, {displayModeBar: false});
+
+// KPI comparison: parenthetical delta with polarity-aware arrow/color.
+const kpi = data.kpi;
+const today = Number(kpi.cancellation_rate_today || 0);
+const yesterday = Number(kpi.cancellation_rate_yesterday || 0);
+const delta = Number((today - yesterday).toFixed(1));
+const isNegativeMetric = kpi.metric_polarity === 'negative_metric';
+const deltaIncreased = delta > 0;
+const arrow = deltaIncreased ? '↑' : (delta < 0 ? '↓' : '→');
+const badDirection = (isNegativeMetric && deltaIncreased) || (!isNegativeMetric && delta < 0);
+const deltaClass = delta === 0 ? '' : (badDirection ? 'delta-red' : 'delta-green');
+const deltaSign = delta > 0 ? '+' : '';
+
+document.getElementById('kpiRate').textContent = `${today.toFixed(1)}%`;
+document.getElementById('kpiDelta').className = `kpi-delta ${deltaClass}`;
+document.getElementById('kpiDelta').textContent = `(${arrow} ${deltaSign}${delta.toFixed(1)}pp vs yesterday)`;
+</script>
+</body>
+</html>
