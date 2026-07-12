@@ -9,7 +9,9 @@ description: |
 
 compatibility: |
   - Access to flight data CSV file (datafile.csv)
-  - Filter parameters: landing_date_range, departure_date_range, flight_status, destination
+  - Filter parameters: category (from clarification-flight), plus whichever of
+    landing_date_range, departure_date_range, flight_status, destination, airline,
+    or custom_filter apply to that category
   - Calculated count from previous answer
 ---
 
@@ -36,10 +38,15 @@ Validate that flight count answers are accurate BEFORE presenting them to users.
 ### Input Parameters
 
 The validator receives:
-- **Landing Date Range:** "all" or custom range (start_date, end_date)
-- **Departure Date Range:** "all" or custom range (start_date, end_date)
+- **Category:** which `clarification-flight` category produced the answer (Total Count,
+  Flight Status, Destination/Country, Airline, Date Range, or Custom)
+- **Landing/Scheduled Date Range:** "all" or custom range (start_date, end_date)
+- **Departure/Actual Date Range:** "all" or custom range (start_date, end_date)
 - **Flight Statuses:** List of selected statuses (or empty for all)
-- **Destination:** Country/Airport name (if destination-filtered query)
+- **Destination:** Country/Airport/City name (if Destination/Country category)
+- **Airline:** Airline name or code (if Airline category)
+- **Custom Filter:** free-text filter description (if Custom category) — validate that
+  the recount logic implementing it matches what the user asked for
 - **Calculated Count:** The flight count to validate
 
 ### Validation Steps
@@ -58,15 +65,20 @@ The validator receives:
 
 #### Step 2: Recount Flights from CSV ✅
 
-**Open datafile.csv and apply filters:**
+**Open datafile.csv and apply the filters relevant to the category:**
 
 ```
 Filtered flights = CSV WHERE
-  (landing_date BETWEEN start_date AND end_date OR range="all")
-  AND (departure_date BETWEEN start_date AND end_date OR range="all")
-  AND (flight_status IN selected_statuses OR statuses_empty)
-  AND (destination MATCHES destination_name OR destination_unspecified)
+  (scheduled_dt/actual_dt BETWEEN start_date AND end_date OR range="all")
+  AND (flight_status_en IN selected_statuses OR statuses_empty)
+  AND (destination_city_en/destination_airport_name/destination_country_en MATCHES destination_name OR destination_unspecified)
+  AND (airline_name/airline_code MATCHES airline_value OR airline_unspecified)
+  AND (custom_filter logic, if category = Custom)
 ```
+
+Only apply the clauses that correspond to the category the user picked in
+`clarification-flight` — e.g. an Airline-category answer only needs the airline and
+date clauses, not a destination clause.
 
 **Count matching rows:** Total = number of rows that match all filters
 

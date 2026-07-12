@@ -149,7 +149,31 @@ def design_output(question_payload: Dict[str, Any]) -> Dict[str, Any]:
             spec["explanation"] = "Rate questions display a KPI indicator with a directional arrow and polarity color."
         return spec
 
-    # 6) Stacked bar for category split by another category.
+    # 6) Animated map for "closest/nearest flights to/from X with arrival time".
+    if selected_output_type == "map_animation":
+        return {
+            "output_type": "map_animation",
+            "confidence": 0.87,
+            "title": title,
+            "chart": {
+                "kind": "map_animation",
+                "origin": "BGN",
+                "destination_field": _pick_label_field(columns),
+                "departure_field": "scheduled_dt",
+                "duration_field": "avg_flight_hours_estimate",
+                "eta_field": "expected_arrival_dt",
+                "limit": 5,
+                "sort": "departure_asc",
+            },
+            "formatting": {
+                "show_flight_card_per_route": True,
+                "show_eta_label": True,
+                "animate_plane_along_path": True,
+            },
+            "explanation": "An animated map best shows nearest/soonest flights toward a destination together with their expected arrival time.",
+        }
+
+    # 7) Stacked bar for category split by another category.
     if selected_output_type == "stacked_bar_chart":
         return {
             "output_type": "stacked_bar_chart",
@@ -177,6 +201,8 @@ def _extract_signals(question_lc: str, intent: str, row_count: int) -> Dict[str,
     """Extract boolean decision signals used by the output type selector."""
     return {
         "is_table_query": _is_table_query(question_lc),
+        "is_route_animation": _is_route_animation(question_lc),
+        "is_subset_breakdown": _is_subset_breakdown_by_category(question_lc),
         "is_category_comparison": _is_category_comparison(question_lc),
         "is_time_series": _is_time_series(question_lc),
         "is_part_to_whole": _is_part_to_whole(question_lc),
@@ -189,8 +215,20 @@ def _extract_signals(question_lc: str, intent: str, row_count: int) -> Dict[str,
 
 def _select_output_type(signals: Dict[str, Any]) -> str:
     """Select the output type with stable rule precedence."""
+    # Checked before the generic table/list rule: "top N flights to/from X"
+    # phrased together with an arrival-time ask is a route animation, not a
+    # plain list.
+    if signals["is_route_animation"]:
+        return "map_animation"
+
     if signals["is_table_query"]:
         return "table"
+
+    # A status-filtered subset (cancellations, delays, ...) broken down by another
+    # category is a part-to-whole share of that subset, not a raw magnitude
+    # comparison across all flights — prefer donut over the generic "by X" bar rule.
+    if signals["is_subset_breakdown"] and not signals["is_time_series"]:
+        return "donut_chart"
 
     if signals["is_category_comparison"]:
         return "bar_chart"
@@ -270,6 +308,25 @@ def _is_table_query(question_lc: str) -> bool:
     )
 
 
+def _is_route_animation(question_lc: str) -> bool:
+    """'Closest/nearest/next/top N/present/show me flights to/from X' — a
+    ranked or presented list of flights toward/from a place. Expected arrival
+    time (departure + the route's avg_flight_hours_estimate) is always part
+    of this view, so an explicit "arrival"/"eta" word is a bonus signal, not
+    a requirement.
+
+    Distinct from a plain 'top N' list (`_is_table_query`) only in that it
+    also names a destination/origin direction (" to "/" from ") — "top 5
+    destinations" alone stays a table/bar chart.
+    """
+    has_ranking = _contains_any(
+        question_lc,
+        ["closest", "closer", "nearest", "soonest", "next ", "top ", "present", "show me"],
+    )
+    has_route = _contains_any(question_lc, [" to ", " from "])
+    return has_ranking and has_route
+
+
 def _is_category_comparison(question_lc: str) -> bool:
     return _contains_any(
         question_lc,
@@ -291,6 +348,36 @@ def _is_category_comparison(question_lc: str) -> bool:
             "by destination",
         ],
     )
+
+
+def _is_subset_breakdown_by_category(question_lc: str) -> bool:
+    """A status-filtered subset (cancellations, delays, ...) broken down by
+    another dimension ("canceled flights by destination country", "delayed
+    flights by airline") — a part-to-whole share of that subset, distinct from
+    a raw magnitude comparison across all flights ("flights by country").
+
+    Excludes rate phrasing ("on-time rate per airline", "cancellation rate by
+    airline") — each category's rate is independent and doesn't sum to a whole,
+    so that stays a bar-chart category comparison, not a donut share.
+    """
+    if "rate" in question_lc:
+        return False
+
+    has_subset_status = _contains_any(
+        question_lc,
+        [
+            "cancel",
+            "cancellation",
+            "delayed",
+            "delay",
+            "on-time",
+            "on time",
+            "no-show",
+            "diverted",
+        ],
+    )
+    has_grouping = _contains_any(question_lc, [" by ", " per "])
+    return has_subset_status and has_grouping
 
 
 def _is_part_to_whole(question_lc: str) -> bool:
