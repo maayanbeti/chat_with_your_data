@@ -66,6 +66,12 @@ This pulls the current Ben Gurion flight board (data.gov.il resource
 back to the static `data/sample_flights.json` (`source="json"`) if the live
 fetch fails (e.g. no network) — and say so explicitly to the user if you do.
 
+**Caching:** `import_and_export_flights` skips the network fetch (reusing the
+existing CSV as-is) if the current snapshot is younger than `cache_minutes`
+(default 15, matching the live feed's own refresh cadence — re-fetching within
+that window can't return anything new). This call is still made on every
+question; most calls will just be a fast cache hit rather than a live pull.
+
 Then show two lines sourced from `access_api/data_freshness.py`:
 
 ```python
@@ -161,11 +167,21 @@ fixed choices and plain chat text for free-form values (dates, typed names):
 
 #### 🔢 Total Count
 - Choice: "All dates" / "Custom range" → if custom, ask (plain text) for scheduled-date start/end, reminding the user of the available range from Step 1
-- Optional: Flight Status multi-select (defaults to all statuses if none picked)
+- Optional: Flight Status multi-select, including an explicit "🌐 All statuses" option (see Flight Status category below for why)
 
 #### ✈️ Flight Status
-- Multi-select: any number of ☑ 🛬 landed ☑ 🛫 departed ☑ ❌ cancelled ☑ ✅ on time ☑ ⏳ not final ☑ ⏰ delayed ☑ 📍 landing ☑ 🎯 final ☑ ⚡ early
-  - Default: if none selected, ALL statuses included
+- Multi-select: ☑ 🌐 All statuses, ☑ 🛬 landed, ☑ 🛫 departed, ☑ ❌ cancelled, ☑ ✅ on time, ☑ ⏳ not final, ☑ ⏰ delayed, ☑ 📍 landing, ☑ 🎯 final, ☑ ⚡ early
+  - **Always include "🌐 All statuses" as an explicit option** so at least one item is
+    selectable even when the user wants everything — some interactive-question surfaces
+    disable submit on a zero-selection multi-select, so never rely on an empty selection
+    to mean "all". Picking "All statuses" (alone, or alongside specific ones) means every
+    status is included; specific picks without "All statuses" filter to just those.
+  - **Option-count limit:** `AskUserQuestion` allows at most 4 options per question. Show
+    only the 4 most relevant: 🌐 All statuses, 🛬 landed, 🛫 departed, and whichever of
+    ❌ cancelled / ⏰ delayed best fits the user's wording. The remaining statuses (on
+    time, not final, landing, final, early) are still reachable — the surface always
+    offers a free-text "Other" choice, so the user can type one of those instead of
+    picking from the list.
 - Date range: "All dates" / "Custom range" (plain-text start/end if custom)
 
 #### 🌍 Destination / Country
@@ -243,7 +259,9 @@ Then, in order:
 ### Interactive Behavior
 - Parameter questions only asked after a category is chosen (progressive disclosure)
 - Custom-range date questions only asked when "Custom range" is chosen (nested progressive disclosure)
-- Status multi-select defaults to "all" if the user picks none
+- Status multi-select always offers an explicit "🌐 All statuses" option (never relies
+  on a zero-selection submit, since some interactive-question surfaces grey out submit
+  until at least one option is checked)
 
 ---
 

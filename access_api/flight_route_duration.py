@@ -112,9 +112,18 @@ def export_flights_with_route_duration(
     csv_path: Optional[Union[Path, str]] = DEFAULT_CSV_PATH,
     output_path: Optional[Union[Path, str]] = DEFAULT_OUTPUT_PATH,
 ) -> Path:
-    """Write a mirrored CSV of flights.csv with avg_flight_hours_estimate appended."""
-    rows = compute_route_duration_rows(csv_path=csv_path)
+    """Write a mirrored CSV of flights.csv with avg_flight_hours_estimate appended.
+
+    Skips the rewrite (cache hit) when `output_path` already exists and is
+    newer than `csv_path` — the mirror is a pure function of its source, so
+    there's nothing new to compute until `flights.csv` is refreshed again.
+    """
+    csv_path = Path(csv_path)
     output_path = Path(output_path)
+    if output_path.exists() and output_path.stat().st_mtime >= csv_path.stat().st_mtime:
+        return output_path
+
+    rows = compute_route_duration_rows(csv_path=csv_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not rows:

@@ -1,0 +1,588 @@
+<title>Flight Data AI — Demo Reel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --surface-1:  #17181c;
+    --surface-2:  #1f2127;
+    --page-plane: #0b0c0f;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #7c7d84;
+    --border: rgba(255,255,255,0.10);
+
+    --s-blue:    #3987e5;
+    --s-aqua:    #199e70;
+    --s-yellow:  #c98500;
+    --s-green:   #1baf7a;
+    --s-violet:  #9085e9;
+    --s-red:     #e66767;
+    --s-orange:  #d95926;
+    --good:      #1ec91e;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(circle at 25% 15%, rgba(57,135,229,0.16), transparent 45%),
+      radial-gradient(circle at 80% 85%, rgba(216,89,38,0.12), transparent 45%),
+      var(--page-plane);
+  }
+
+  .stage {
+    position: relative;
+    width: min(94vw, 920px);
+    aspect-ratio: 16 / 9.6;
+    background: var(--surface-1);
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: 0 40px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- chrome bar --- */
+  .chrome {
+    flex: 0 0 40px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #e34948; }
+  .dot.y { background: #eda100; }
+  .dot.g { background: #1baf7a; }
+  .chrome .url {
+    margin-left: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.05);
+    padding: 4px 12px;
+    border-radius: 6px;
+    flex: 1;
+    max-width: 260px;
+  }
+  .chrome .badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #ff5f5f;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chrome .badge .pulse {
+    width: 8px; height: 8px; border-radius: 50%; background: #ff5f5f;
+    animation: pulse 1.1s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  /* --- main body --- */
+  .body {
+    position: relative;
+    flex: 1;
+    padding: 28px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .brand {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  /* chat bubble: user question */
+  .user-row { display: flex; justify-content: flex-end; }
+  .user-bubble {
+    background: var(--s-blue);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 16px 16px 4px 16px;
+    font-size: 18px;
+    font-weight: 600;
+    max-width: 80%;
+    min-height: 1.4em;
+  }
+  .caret {
+    display: inline-block; width: 2px; height: 1em; background: white;
+    margin-left: 2px; vertical-align: middle;
+    animation: blink 0.8s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .thinking { display: flex; gap: 5px; padding: 6px 4px; opacity: 0; transition: opacity .2s; }
+  .thinking.show { opacity: 1; }
+  .thinking span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted);
+    animation: bounce 1s infinite;
+  }
+  .thinking span:nth-child(2) { animation-delay: .15s; }
+  .thinking span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,80%,100%{ transform: translateY(0); opacity:.4 } 40%{ transform: translateY(-5px); opacity:1 } }
+
+  /* toast stack */
+  .toasts { display: flex; flex-direction: column; gap: 8px; min-height: 76px; }
+  .toast {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--s-blue);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    opacity: 0;
+    transform: translateX(-14px);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(0); }
+  .toast strong { color: var(--text-primary); }
+  .toast.good { border-left-color: var(--good); }
+  .toast.live { border-left-color: var(--s-orange); }
+  .toast.cache { border-left-color: var(--s-aqua); }
+
+  /* clarify card */
+  .clarify {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .clarify.show { opacity: 1; transform: translateY(0) scale(1); }
+  .clarify .q { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    font-size: 13px; padding: 7px 14px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    color: var(--text-secondary);
+    transition: transform .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  .chip.picked {
+    background: var(--s-blue); color: white; transform: scale(1.08);
+    box-shadow: 0 0 0 3px rgba(57,135,229,0.25);
+  }
+  .confirm-line {
+    margin-top: 12px; font-size: 13px; color: var(--good);
+    opacity: 0; transition: opacity .3s ease;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .confirm-line.show { opacity: 1; }
+
+  /* output stage */
+  .output-wrap {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 140px;
+  }
+  .output {
+    opacity: 0; transform: scale(0.7);
+    width: 100%;
+  }
+  .output.show { animation: boomIn .5s cubic-bezier(.2,.9,.25,1.4) forwards; }
+  @keyframes boomIn {
+    0%   { opacity: 0; transform: scale(0.7); }
+    55%  { opacity: 1; transform: scale(1.08); }
+    75%  { transform: scale(0.97); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* KPI card */
+  .kpi-tile {
+    display: inline-flex; flex-direction: column; gap: 4px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 28px;
+  }
+  .kpi-tile .num { font-size: 42px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--s-blue); }
+  .kpi-tile .lbl { font-size: 13px; color: var(--text-muted); }
+
+  /* bar chart mini */
+  .bars { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 480px; margin: 0 auto; }
+  .bar-line { display: flex; align-items: center; gap: 10px; }
+  .bar-line .name { width: 110px; font-size: 12px; color: var(--text-secondary); text-align: right; }
+  .bar-line .track { flex: 1; background: rgba(255,255,255,0.06); border-radius: 4px; height: 16px; overflow: hidden; }
+  .bar-line .fill { height: 100%; border-radius: 4px; width: 0%; transition: width .6s ease; }
+  .bar-line .val { width: 40px; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  /* donut mini */
+  .donut-wrap { display: flex; align-items: center; justify-content: center; gap: 28px; }
+  .donut-wrap svg { transform: rotate(-90deg); }
+  .donut-center-label { text-align: center; }
+  .donut-center-label .num { font-size: 24px; font-weight: 700; }
+  .donut-center-label .lbl { font-size: 11px; color: var(--text-muted); }
+  .donut-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+  .donut-legend .li { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+  .donut-legend .sw { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* progress dots */
+  .progress { position: absolute; bottom: 16px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; }
+  .progress .d { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: background .2s, transform .2s; }
+  .progress .d.active { background: var(--s-blue); transform: scale(1.3); }
+
+  .caption {
+    position: absolute; top: 46px; left: 40px; right: 40px;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0; transition: opacity .3s ease;
+  }
+  .caption.show { opacity: 1; }
+
+  .hint {
+    margin-top: 14px; font-size: 12.5px; color: var(--text-muted); text-align: center; max-width: 620px;
+  }
+
+  /* intro pitch layer */
+  .intro-layer {
+    position: absolute; inset: 0; z-index: 15;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-1);
+    opacity: 0; pointer-events: none;
+    transition: opacity .5s ease;
+    text-align: center;
+    padding: 0 50px;
+  }
+  .intro-layer.show { opacity: 1; }
+  .intro-content { opacity: 0; transform: translateY(8px); transition: opacity .4s ease, transform .4s ease; }
+  .intro-content.show { opacity: 1; transform: translateY(0); }
+  .intro-eyebrow { font-size: 12px; letter-spacing: 0.18em; color: var(--s-blue); font-weight: 700; margin-bottom: 12px; }
+  .intro-title { font-family: Georgia, "Times New Roman", serif; font-size: 34px; font-weight: 700; margin-bottom: 12px; line-height: 1.2; }
+  .intro-sub { font-size: 15px; color: var(--text-secondary); font-style: italic; }
+  .intro-stat { font-family: Georgia, "Times New Roman", serif; font-size: 56px; font-weight: 700; color: var(--s-blue); margin-bottom: 6px; }
+</style>
+
+<div class="stage" id="stage">
+  <div class="chrome">
+    <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+    <div class="url">flight-assistant.app</div>
+    <div class="badge"><span class="pulse"></span>LIVE DEMO</div>
+  </div>
+  <div class="body">
+    <div class="brand">✈️ Flight Data Assistant</div>
+    <div class="caption" id="caption"></div>
+
+    <div class="user-row">
+      <div class="user-bubble" id="user-bubble"><span id="typed"></span><span class="caret"></span></div>
+    </div>
+    <div class="thinking" id="thinking"><span></span><span></span><span></span></div>
+
+    <div class="toasts" id="toasts"></div>
+
+    <div class="clarify" id="clarify">
+      <div class="q" id="clarify-q">What would you like to know?</div>
+      <div class="chips" id="chips"></div>
+      <div class="confirm-line" id="confirm-line">✓ <span id="confirm-text"></span></div>
+    </div>
+
+    <div class="output-wrap">
+      <div class="output" id="output"></div>
+    </div>
+  </div>
+
+  <div class="progress" id="progress"></div>
+  <div class="intro-layer" id="intro-layer"></div>
+</div>
+
+<script>
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const $ = id => document.getElementById(id);
+
+const QUESTIONS = [
+  {
+    question: "How many flights to Cyprus do we have?",
+    dbToast: { icon: "🌐", cls: "live", text: "Refreshing <strong>live data.gov.il</strong> feed…" },
+    healthToast: { icon: "✅", cls: "good", text: "<strong>3,023 rows</strong> — row count + freshness PASS" },
+    category: "🌍 Destination / Country",
+    chips: ["🔢 Total Count", "🌍 Destination / Country", "🏢 Airline", "📅 Date Range"],
+    pickedIndex: 1,
+    confirmText: "Destination = Cyprus · Dates = all",
+    outputType: "kpi",
+    kpi: { num: "201", lbl: "flights to Cyprus" },
+  },
+  {
+    question: "Which airline has the most flights?",
+    dbToast: { icon: "⚡", cls: "cache", text: "<strong>Cache hit</strong> — snapshot 4 min old, reused" },
+    healthToast: { icon: "✅", cls: "good", text: "<strong>3,023 rows</strong> — row count + freshness PASS" },
+    category: "🏢 Airline",
+    chips: ["🔢 Total Count", "✈️ Flight Status", "🏢 Airline", "🔍 Custom / Other"],
+    pickedIndex: 2,
+    confirmText: "Category = Airline (grouped) · Dates = all",
+    outputType: "bar",
+    bars: [
+      { name: "EL AL", value: 825, color: "var(--s-blue)" },
+      { name: "ARKIA", value: 410, color: "var(--s-aqua)" },
+      { name: "ISRAIR", value: 300, color: "var(--s-yellow)" },
+      { name: "WIZZ AIR", value: 210, color: "var(--s-violet)" },
+    ],
+  },
+  {
+    question: "Cancelled flights broken down by airline",
+    dbToast: { icon: "⚡", cls: "cache", text: "<strong>Cache hit</strong> — snapshot 5 min old, reused" },
+    healthToast: { icon: "✅", cls: "good", text: "<strong>3,023 rows</strong> — row count + freshness PASS" },
+    category: "🔍 Custom / Other",
+    chips: ["✈️ Flight Status", "🌍 Destination / Country", "🔍 Custom / Other", "📅 Date Range"],
+    pickedIndex: 2,
+    confirmText: "Filter = cancelled, by airline · Dates = all",
+    outputType: "donut",
+    donut: [
+      { name: "EL AL", value: 14, color: "var(--s-blue)" },
+      { name: "ARKIA", value: 9, color: "var(--s-aqua)" },
+      { name: "ISRAIR", value: 6, color: "var(--s-yellow)" },
+      { name: "OTHER", value: 5, color: "var(--s-violet)" },
+    ],
+  },
+];
+
+// ---- Intro "sell speech" — pulled straight from the deck (Final PPT.pdf) ----
+const INTRO_CARDS = [
+  {
+    html: `<div class="intro-eyebrow">FLIGHT DATA AI</div>
+           <div class="intro-title">Chat with flight data</div>
+           <div class="intro-sub">Making flight choices clear through intelligent clarification</div>`,
+  },
+  {
+    html: `<div class="intro-eyebrow">THE PROBLEM</div>
+           <div class="intro-title">Too much flight information.<br>Not enough clear answers.</div>`,
+  },
+  {
+    html: `<div class="intro-stat">100%</div>
+           <div class="intro-sub">of answers pass an independent recount before delivery</div>`,
+  },
+];
+
+// ---- Closing card — mirrors the deck's wrap-up slide ("Thank you —
+// questions welcome.") so the demo ends on the same note the deck does.
+const OUTRO_CARDS = [
+  {
+    html: `<div class="intro-eyebrow">FLIGHT DATA AI</div>
+           <div class="intro-title">Thank you</div>
+           <div class="intro-sub">Questions welcome</div>`,
+  },
+];
+
+async function playCardSequence(cards, holdMs = 3800) {
+  const layer = $("intro-layer");
+  // Outer layer stays solidly opaque for the WHOLE sequence — only the
+  // inner content crossfades between cards, so the chat UI behind it never
+  // flashes through during the gap between card 1 and card 2.
+  layer.innerHTML = `<div class="intro-content" id="intro-content"></div>`;
+  const content = $("intro-content");
+  layer.classList.add("show");
+  await sleep(150);
+
+  for (const card of cards) {
+    content.innerHTML = card.html;
+    content.classList.remove("show");
+    void content.offsetWidth; // restart the transition
+    content.classList.add("show");
+    await sleep(holdMs);
+    content.classList.remove("show");
+    await sleep(400);
+  }
+
+  layer.classList.remove("show");
+  await sleep(500);
+  layer.innerHTML = "";
+}
+
+function buildToast(icon, cls, text) {
+  const t = document.createElement("div");
+  t.className = "toast " + cls;
+  t.innerHTML = `<span>${icon}</span><span>${text}</span>`;
+  return t;
+}
+
+async function typeText(el, text, perCharMs) {
+  el.textContent = "";
+  for (const ch of text) {
+    el.textContent += ch;
+    await sleep(perCharMs);
+  }
+}
+
+function renderBars(container, bars) {
+  container.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "bars";
+  bars.forEach(b => {
+    const line = document.createElement("div");
+    line.className = "bar-line";
+    line.innerHTML = `<div class="name">${b.name}</div><div class="track"><div class="fill" style="background:${b.color}"></div></div><div class="val">${b.value}</div>`;
+    wrap.appendChild(line);
+  });
+  container.appendChild(wrap);
+  requestAnimationFrame(() => {
+    const max = Math.max(...bars.map(b => b.value));
+    [...container.querySelectorAll(".fill")].forEach((f, i) => {
+      f.style.width = (bars[i].value / max * 100) + "%";
+    });
+  });
+}
+
+function renderDonut(container, data) {
+  container.innerHTML = "";
+  const total = data.reduce((a, b) => a + b.value, 0);
+  const r = 46, cx = 60, cy = 60, circumference = 2 * Math.PI * r;
+  let offset = 0;
+  let svg = `<svg width="120" height="120" viewBox="0 0 120 120">`;
+  svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="16"/>`;
+  data.forEach(d => {
+    const frac = d.value / total;
+    const dash = frac * circumference;
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color.replace('var(','').replace(')','')}" stroke-width="16" stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-offset}" style="stroke:${resolveColor(d.color)}"/>`;
+    offset += dash;
+  });
+  svg += `</svg>`;
+
+  const wrap = document.createElement("div");
+  wrap.className = "donut-wrap";
+  const legend = data.map(d => `<div class="li"><span class="sw" style="background:${resolveColor(d.color)}"></span>${d.name}: ${d.value}</div>`).join("");
+  wrap.innerHTML = `
+    <div style="position:relative">
+      ${svg}
+      <div class="donut-center-label" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div class="num">${total}</div><div class="lbl">cancelled</div>
+      </div>
+    </div>
+    <div class="donut-legend">${legend}</div>
+  `;
+  container.appendChild(wrap);
+}
+
+function resolveColor(varStr) {
+  const name = varStr.replace("var(", "").replace(")", "").trim();
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+async function resetScene() {
+  $("typed").textContent = "";
+  $("thinking").classList.remove("show");
+  $("toasts").innerHTML = "";
+  $("clarify").classList.remove("show");
+  $("chips").innerHTML = "";
+  $("confirm-line").classList.remove("show");
+  $("output").classList.remove("show");
+  $("output").innerHTML = "";
+  $("caption").classList.remove("show");
+}
+
+function setProgress(idx) {
+  const wrap = $("progress");
+  wrap.innerHTML = "";
+  QUESTIONS.forEach((_, i) => {
+    const d = document.createElement("div");
+    d.className = "d" + (i === idx ? " active" : "");
+    wrap.appendChild(d);
+  });
+}
+
+async function caption(text) {
+  const c = $("caption");
+  c.textContent = text;
+  c.classList.add("show");
+  await sleep(900);
+  c.classList.remove("show");
+}
+
+async function playQuestion(q, idx) {
+  await resetScene();
+  setProgress(idx);
+
+  // 1. type the question
+  await sleep(400);
+  await typeText($("typed"), q.question, 48);
+  await sleep(600);
+
+  // 2. thinking
+  $("thinking").classList.add("show");
+  await sleep(900);
+  $("thinking").classList.remove("show");
+
+  // 3. db / cache toast
+  await caption("checking cache / refreshing");
+  const t1 = buildToast(q.dbToast.icon, q.dbToast.cls, q.dbToast.text);
+  $("toasts").appendChild(t1);
+  await sleep(30);
+  t1.classList.add("show");
+  await sleep(1600);
+
+  // 4. validation toast
+  await caption("validating data health");
+  const t2 = buildToast(q.healthToast.icon, q.healthToast.cls, q.healthToast.text);
+  $("toasts").appendChild(t2);
+  await sleep(30);
+  t2.classList.add("show");
+  await sleep(1800);
+
+  // 5. clarification card
+  await caption("clarifying question");
+  $("clarify-q").textContent = "What would you like to know?";
+  const chipsWrap = $("chips");
+  chipsWrap.innerHTML = "";
+  q.chips.forEach(label => {
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = label;
+    chipsWrap.appendChild(c);
+  });
+  $("clarify").classList.add("show");
+  await sleep(1300);
+
+  // 6. simulate pick
+  const chipEls = [...chipsWrap.children];
+  chipEls[q.pickedIndex].classList.add("picked");
+  await sleep(900);
+
+  // 7. confirm line
+  $("confirm-text").textContent = q.confirmText;
+  $("confirm-line").classList.add("show");
+  await sleep(1600);
+
+  // 8. design output stage
+  await caption("designing output");
+  await sleep(700);
+
+  // 9. reveal output
+  const out = $("output");
+  if (q.outputType === "kpi") {
+    out.innerHTML = `<div style="display:flex;justify-content:center"><div class="kpi-tile"><div class="num">${q.kpi.num}</div><div class="lbl">${q.kpi.lbl}</div></div></div>`;
+  } else if (q.outputType === "bar") {
+    renderBars(out, q.bars);
+  } else if (q.outputType === "donut") {
+    renderDonut(out, q.donut);
+  }
+  out.classList.add("show");
+  await sleep(3200);
+}
+
+async function playOnce() {
+  await playCardSequence(INTRO_CARDS);
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    await playQuestion(QUESTIONS[i], i);
+    if (i < QUESTIONS.length - 1) await sleep(400); // brief pause between questions, no wipe
+  }
+  await sleep(400);
+  await playCardSequence(OUTRO_CARDS, 3200);
+  window.__demoDone = true; // invisible hook so recording tools know exactly when to stop
+}
+
+window.__demoDone = false;
+playOnce();
+</script>
+
+<p class="hint" style="position:fixed;bottom:8px;left:50%;transform:translateX(-50%);">
+  Plays once through (intro + 3 questions + closing) and stops, silent — record this window (QuickTime/CapCut) and add your own music/voice-over on top if you want any.
+</p>

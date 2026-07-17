@@ -11,9 +11,11 @@ def design_output(question_payload: Dict[str, Any]) -> Dict[str, Any]:
     dataset_context = question_payload.get("dataset_context", {})
     columns = dataset_context.get("columns", {})
     row_count = int(question_payload.get("row_count") or 0)
+    result_schema = question_payload.get("result_schema") or []
     question_lc = question.lower()
     title = _title_from_question(question)
     signals = _extract_signals(question_lc, intent, row_count)
+    signals["is_single_metric_result"] = _is_single_metric_result(result_schema)
     selected_output_type = _select_output_type(signals)
 
     # 1) Table for listing, exact values, or detail-heavy asks.
@@ -213,6 +215,19 @@ def _extract_signals(question_lc: str, intent: str, row_count: int) -> Dict[str,
     }
 
 
+def _is_single_metric_result(result_schema: list) -> bool:
+    """True when the answer shape is exactly one metric and no dimension —
+    a lone count/average/rate with nothing to group or list by, so no chart
+    type that needs a category axis (table, bar, donut, line, stacked bar)
+    can actually be built from it.
+    """
+    if not result_schema:
+        return False
+    metric_fields = [f for f in result_schema if f.get("type") == "metric"]
+    dimension_fields = [f for f in result_schema if f.get("type") == "dimension"]
+    return len(metric_fields) == 1 and len(dimension_fields) == 0 and len(result_schema) == 1
+
+
 def _select_output_type(signals: Dict[str, Any]) -> str:
     """Select the output type with stable rule precedence."""
     # Checked before the generic table/list rule: "top N flights to/from X"
@@ -220,6 +235,14 @@ def _select_output_type(signals: Dict[str, Any]) -> str:
     # plain list.
     if signals["is_route_animation"]:
         return "map_animation"
+
+    # A result shaped as a single metric with no breakdown dimension can't
+    # meaningfully be tabulated — a lone number stays a KPI card even when the
+    # question is phrased with list-ish wording ("show me", "list", "top").
+    # Wording-based table/list signals only apply once there's an actual
+    # dimension to break the number down by.
+    if signals["is_single_metric_result"]:
+        return "kpi_cards"
 
     if signals["is_table_query"]:
         return "table"

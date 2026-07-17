@@ -1,0 +1,366 @@
+<title>Flight Clarification Agent — QA Run</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  .viz-root {
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #0ca30c;
+
+    --s-blue:    #2a78d6;
+    --s-aqua:    #1baf7a;
+    --s-yellow:  #eda100;
+    --s-green:   #008300;
+    --s-violet:  #4a3aa7;
+    --s-red:     #e34948;
+    --s-orange:  #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz-root {
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --good:           #0ca30c;
+
+      --s-blue:    #3987e5;
+      --s-aqua:    #199e70;
+      --s-yellow:  #c98500;
+      --s-green:   #008300;
+      --s-violet:  #9085e9;
+      --s-red:     #e66767;
+      --s-orange:  #d95926;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --s-blue:    #3987e5;
+    --s-aqua:    #199e70;
+    --s-yellow:  #c98500;
+    --s-green:   #008300;
+    --s-violet:  #9085e9;
+    --s-red:     #e66767;
+    --s-orange:  #d95926;
+  }
+  :root[data-theme="light"] .viz-root {
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --s-blue:    #2a78d6;
+    --s-aqua:    #1baf7a;
+    --s-yellow:  #eda100;
+    --s-green:   #008300;
+    --s-violet:  #4a3aa7;
+    --s-red:     #e34948;
+    --s-orange:  #eb6834;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 20px 64px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 24px; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 15px;
+    margin: 0 0 16px;
+    color: var(--text-primary);
+  }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .kpi .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .label { font-size: 12.5px; color: var(--text-secondary); margin-top: 4px; }
+  .kpi .value.good { color: var(--good); }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+  .bar-label { width: 230px; flex: 0 0 230px; font-size: 12.5px; color: var(--text-secondary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; position: relative; height: 20px; background: var(--gridline); border-radius: 4px; overflow: visible; }
+  .bar-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 4px; min-width: 3px; }
+  .bar-value { margin-left: 8px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-primary); white-space: nowrap; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12.5px; color: var(--text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  .callout {
+    border-left: 3px solid var(--s-yellow);
+    background: color-mix(in srgb, var(--s-yellow) 12%, var(--surface-1));
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--gridline);
+    padding: 8px 10px;
+    position: sticky; top: 0; background: var(--surface-1);
+  }
+  tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    vertical-align: top;
+  }
+  tbody tr:hover { background: color-mix(in srgb, var(--s-blue) 6%, transparent); }
+  .table-scroll { overflow-x: auto; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  }
+  .pill.cache { background: color-mix(in srgb, var(--s-blue) 18%, transparent); color: var(--s-blue); }
+  .pill.live { background: color-mix(in srgb, var(--s-orange) 18%, transparent); color: var(--s-orange); }
+  .pill.pass { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+  .followup-list { margin: 0; padding-left: 16px; }
+  .followup-list li { margin-bottom: 2px; }
+  .mono { font-variant-numeric: tabular-nums; }
+  footer { text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 24px; }
+</style>
+
+<div class="viz-root">
+  <h1>✈️ Flight Clarification Agent — QA Test Run</h1>
+  <p class="subtitle">16 distinct flight-data questions driven through the real <code>clarification-flight</code> / <code>master-workflow</code> pipeline code (live refresh → data-health validation → category clarification → answer calculation → data-validator recount → design-output). Run 2026-07-13, after the <code>design_output.py</code> fix below.</p>
+
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <div class="callout" style="border-left-color:var(--good)">
+    <strong>✅ Fixed: single-metric answers now always get a KPI card</strong>
+    Run #6 ("Show me flight statistics", Total Count category) used to render as a <code>table</code> because the phrase "show me" tripped <code>_is_table_query()</code> before the KPI rule ever ran. Added a data-shape signal, <code>_is_single_metric_result()</code> — when the answer is exactly one metric with no breakdown dimension, no wording ("show me"/"list"/"top") can turn it into a table, since there's nothing to tabulate. It now outranks the lexical table/list check. Verified: run #6 returns <code>kpi_cards</code> below, and runs #11–16 (which do carry a real dimension to break down by) are unaffected — bar/donut/line/stacked-bar/map/table still fire correctly.
+  </div>
+
+  <div class="card">
+    <h2>Session time — backend compute vs. real chat session</h2>
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">
+      The timings below are <strong>backend/compute only</strong> (refresh → validation → filter → validator recount → design_output) — they do not include a real user's time answering the in-chat clarification form (2–4 <code>AskUserQuestion</code> round-trips: category, then that category's parameters, then confirmation). In an actual chat session, that human-interaction time dominates end-to-end latency, not the code.
+    </p>
+    <div class="legend">
+      <span class="legend-item"><span class="swatch" style="background:var(--s-blue)"></span>cache hit (reused snapshot &lt; 15 min old)</span>
+      <span class="legend-item"><span class="swatch" style="background:var(--s-orange)"></span>live data.gov.il API fetch</span>
+    </div>
+    <div id="time-chart"></div>
+  </div>
+
+  <div class="card">
+    <h2>Questions by clarification category</h2>
+    <div id="category-chart"></div>
+  </div>
+
+  <div class="card">
+    <h2>Output types produced by design_output (all 7 now exercised)</h2>
+    <div id="output-chart"></div>
+  </div>
+
+  <div class="card">
+    <h2>Full run detail</h2>
+    <div class="table-scroll">
+      <table id="detail-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Question</th>
+            <th>Category</th>
+            <th>Follow-up questions shown</th>
+            <th>Validation</th>
+            <th>Data source</th>
+            <th>Final answer</th>
+            <th>Output type</th>
+            <th>Time (A→Z)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Harness: access_api.flight_sql.import_and_export_flights · access_api.data_freshness · access_api.design_output — executed directly, category/parameter answers simulated per clarification-flight's documented form flow.</footer>
+</div>
+
+<script>
+const DATA = [{"id": 1, "question": "How many flights do we have?", "category": "\ud83d\udd22 Total Count", "followup": ["What would you like to know? -> Total Count (Recommended)", "All dates or custom range? -> All dates"], "params_summary": "dates=all, statuses=all", "source_path": "live API fetch", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "3023 flights", "calculated_count": 3023, "validator_recount": 3023, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights do we have", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 1.714, "validation": 0.0481, "calculate": 0.0072, "validate_answer": 0.0074, "design_output": 0.0}, "total_elapsed_sec": 1.7768}, {"id": 2, "question": "How many flights were cancelled this week?", "category": "\u2708\ufe0f Flight Status", "followup": ["What would you like to know? -> Flight Status (Recommended)", "Which statuses? -> \u274c cancelled", "All dates or custom range? -> Custom range", "Start date? / End date? -> 2026-07-11 / 2026-07-13"], "params_summary": "status=CANCELED, dates=2026-07-11..2026-07-13 (scheduled)", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "14 flights", "calculated_count": 14, "validator_recount": 14, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights were cancelled this week", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.0038, "validation": 0.0249, "calculate": 0.0065, "validate_answer": 0.0062, "design_output": 0.0}, "total_elapsed_sec": 0.0415}, {"id": 3, "question": "How many flights to Larnaca?", "category": "\ud83c\udf0d Destination / Country", "followup": ["What would you like to know? -> Destination/Country (Recommended)", "Which destination (city, airport, or country)? -> Larnaca", "All dates or custom range? -> All dates"], "params_summary": "destination=Larnaca, dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "143 flights", "calculated_count": 143, "validator_recount": 143, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights to Larnaca", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.0033, "validation": 0.0207, "calculate": 0.0061, "validate_answer": 0.0062, "design_output": 0.0}, "total_elapsed_sec": 0.0364}, {"id": 4, "question": "How many flights does EL AL operate?", "category": "\ud83c\udfe2 Airline", "followup": ["What would you like to know? -> Airline (Recommended)", "Which airline (name or code)? -> EL AL", "All dates or custom range? -> All dates"], "params_summary": "airline=EL AL, dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "825 flights", "calculated_count": 825, "validator_recount": 825, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights does EL AL operate", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.003, "validation": 0.0203, "calculate": 0.0057, "validate_answer": 0.006, "design_output": 0.0}, "total_elapsed_sec": 0.0351}, {"id": 5, "question": "How many flights departed yesterday?", "category": "\ud83d\udcc5 Date Range", "followup": ["What would you like to know? -> Date Range (Recommended)", "Scheduled or Actual date field? -> Actual", "Start date? / End date? -> 2026-07-12 / 2026-07-12"], "params_summary": "date_field=actual_dt, dates=2026-07-12..2026-07-12", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "174 flights", "calculated_count": 174, "validator_recount": 174, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights departed yesterday", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.0031, "validation": 0.0212, "calculate": 0.0054, "validate_answer": 0.006, "design_output": 0.0}, "total_elapsed_sec": 0.0357}, {"id": 6, "question": "Show me flight statistics", "category": "\ud83d\udd22 Total Count", "followup": ["What would you like to know? -> Total Count (Recommended)", "All dates or custom range? -> All dates", "Filter by status? -> \ud83c\udf10 All statuses"], "params_summary": "dates=all, statuses=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "3023 flights", "calculated_count": 3023, "validator_recount": 3023, "validator_pass": true, "output_type": "kpi_cards", "output_title": "Show me flight statistics", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.0031, "validation": 0.021, "calculate": 0.0052, "validate_answer": 0.0054, "design_output": 0.0}, "total_elapsed_sec": 0.0348}, {"id": 7, "question": "How many flights to Cyprus do we have?", "category": "\ud83c\udf0d Destination / Country", "followup": ["What would you like to know? -> Destination/Country (Recommended)", "Which destination (city, airport, or country)? -> Cyprus", "All dates or custom range? -> All dates"], "params_summary": "destination=Cyprus (matches country CYPRUS or city LARNACA/PAFOS if tagged), dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "199 flights", "calculated_count": 199, "validator_recount": 199, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights to Cyprus do we have", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.003, "validation": 0.0204, "calculate": 0.0056, "validate_answer": 0.0079, "design_output": 0.0}, "total_elapsed_sec": 0.0368}, {"id": 8, "question": "How many flights are delayed right now?", "category": "\u2708\ufe0f Flight Status", "followup": ["What would you like to know? -> Flight Status (Recommended)", "Which statuses? -> \u23f0 delayed", "All dates or custom range? -> All dates"], "params_summary": "status=DELAYED, dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "11 flights", "calculated_count": 11, "validator_recount": 11, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights are delayed right now", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.0029, "validation": 0.0199, "calculate": 0.0053, "validate_answer": 0.0056, "design_output": 0.0}, "total_elapsed_sec": 0.0338}, {"id": 9, "question": "How many flights have a terminal number assigned?", "category": "\ud83d\udd0d Custom / Other", "followup": ["What would you like to know? -> Custom/Other (Recommended)", "Describe the filter in your own words -> flights with a terminal number", "All dates or custom range? -> All dates"], "params_summary": "custom_filter='has terminal_num', dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "3023 flights", "calculated_count": 3023, "validator_recount": 3023, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights have a terminal number assigned", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.003, "validation": 0.02, "calculate": 0.0057, "validate_answer": 0.0059, "design_output": 0.0}, "total_elapsed_sec": 0.0346}, {"id": 10, "question": "How many flights landed on time between 2026-07-11 and 2026-07-13?", "category": "\u2708\ufe0f Flight Status", "followup": ["What would you like to know? -> Flight Status (Recommended)", "Which statuses? -> \u2705 on time (typed via 'Other', not in the 4-option shortlist)", "All dates or custom range? -> Custom range", "Start date? / End date? -> 2026-07-11 / 2026-07-13"], "params_summary": "status=ON TIME, dates=2026-07-11..2026-07-13 (scheduled)", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:04:57+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "71 flights", "calculated_count": 71, "validator_recount": 71, "validator_pass": true, "output_type": "kpi_cards", "output_title": "How many flights landed on time between 2026-07-11 and 2026-07-13", "output_explanation": "KPI cards are ideal for single-number answers.", "stage_times_sec": {"refresh": 0.0028, "validation": 0.0195, "calculate": 0.0055, "validate_answer": 0.0057, "design_output": 0.0}, "total_elapsed_sec": 0.0335}, {"id": 11, "question": "Which airline has the most flights? (forced cache-miss / live-fetch test)", "category": "\ud83c\udfe2 Airline", "followup": ["What would you like to know? -> Airline (Recommended)", "Which airline (name or code)? -> (left blank -> Custom/Other used instead: 'group by airline, find max')", "All dates or custom range? -> All dates"], "params_summary": "custom_filter='group by airline, top count', dates=all", "source_path": "live API fetch", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "EL AL ISRAEL AIRLINES (825 flights)", "calculated_count": 825, "validator_recount": 825, "validator_pass": true, "output_type": "bar_chart", "output_title": "Which airline has the most flights? (forced cache-miss / live-fetch test)", "output_explanation": "A bar chart is best for comparing values across categories.", "stage_times_sec": {"refresh": 2.7269, "validation": 0.0379, "calculate": 0.0071, "validate_answer": 0.0067, "design_output": 0.0}, "total_elapsed_sec": 2.7787}, {"id": 12, "question": "Cancelled flights broken down by airline", "category": "\ud83d\udd0d Custom / Other", "followup": ["What would you like to know? -> Custom/Other (Recommended)", "Describe the filter in your own words -> cancelled flights, broken down by airline", "All dates or custom range? -> All dates"], "params_summary": "custom_filter='cancelled flights by airline', dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "34 cancelled across 5 airlines (top: [('ARKIA  ISRAELI  AIRLINES', 25), ('TUS AIRWAYS', 4), ('BLUE BIRD AIRWAYS', 3)])", "calculated_count": 34, "validator_recount": 34, "validator_pass": true, "output_type": "donut_chart", "output_title": "Cancelled flights broken down by airline", "output_explanation": "A donut chart matches part-to-whole share questions.", "stage_times_sec": {"refresh": 0.0035, "validation": 0.0219, "calculate": 0.0059, "validate_answer": 0.0057, "design_output": 0.0}, "total_elapsed_sec": 0.0372}, {"id": 13, "question": "Flights by hour today", "category": "\ud83d\udd0d Custom / Other", "followup": ["What would you like to know? -> Custom/Other (Recommended)", "Describe the filter in your own words -> flights grouped by hour", "All dates or custom range? -> All dates"], "params_summary": "custom_filter='flights by hour', dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "24 hourly buckets, peak at 16:00 with 205 flights", "calculated_count": 3023, "validator_recount": 3023, "validator_pass": true, "output_type": "line_chart", "output_title": "Flights by hour today", "output_explanation": "A line chart is best for trend and over-time questions.", "stage_times_sec": {"refresh": 0.0031, "validation": 0.0213, "calculate": 0.0055, "validate_answer": 0.0055, "design_output": 0.0}, "total_elapsed_sec": 0.0354}, {"id": 14, "question": "Arrivals vs departures by terminal", "category": "\ud83d\udd0d Custom / Other", "followup": ["What would you like to know? -> Custom/Other (Recommended)", "Describe the filter in your own words -> arrivals vs departures split by terminal", "All dates or custom range? -> All dates"], "params_summary": "custom_filter='arrivals vs departures by terminal', dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "4 terminal/direction combinations across 3023 flights", "calculated_count": 3023, "validator_recount": 3023, "validator_pass": true, "output_type": "stacked_bar_chart", "output_title": "Arrivals vs departures by terminal", "output_explanation": "A stacked bar chart compares totals and composition across categories.", "stage_times_sec": {"refresh": 0.003, "validation": 0.0209, "calculate": 0.0055, "validate_answer": 0.0057, "design_output": 0.0}, "total_elapsed_sec": 0.0352}, {"id": 15, "question": "What are the closest flights to Larnaca and their arrival time?", "category": "\ud83c\udf0d Destination / Country", "followup": ["What would you like to know? -> Destination/Country (Recommended)", "Which destination (city, airport, or country)? -> Larnaca", "All dates or custom range? -> All dates"], "params_summary": "destination=Larnaca, dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "nearest 5 of 143 matching flights: ['584@2026-07-12T17:10:00', '527@2026-07-12T17:40:00', '9136@2026-07-12T17:55:00', '113@2026-07-12T18:40:00', '5142@2026-07-12T19:35:00']", "calculated_count": 143, "validator_recount": 143, "validator_pass": true, "output_type": "map_animation", "output_title": "What are the closest flights to Larnaca and their arrival time", "output_explanation": "An animated map best shows nearest/soonest flights toward a destination together with their expected arrival time.", "stage_times_sec": {"refresh": 0.0029, "validation": 0.0199, "calculate": 0.0058, "validate_answer": 0.0059, "design_output": 0.0}, "total_elapsed_sec": 0.0346}, {"id": 16, "question": "List the delayed flights with full details", "category": "\u2708\ufe0f Flight Status", "followup": ["What would you like to know? -> Flight Status (Recommended)", "Which statuses? -> \u23f0 delayed", "All dates or custom range? -> All dates"], "params_summary": "status=DELAYED, dates=all", "source_path": "cache (reused snapshot, <15 min old)", "refresh_error": null, "health_overall": "VALID", "row_count_test_pass": true, "freshness_test_pass": true, "data_row_count": 3023, "context_header": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udcca Available dates (scheduled): 2026-07-12 to 2026-07-16", "health_report": "\ud83d\udcc5 Data last updated: 2026-07-13T15:05:00+00:00 UTC (3023 rows)\n\ud83d\udd22 Row count check: 3023 rows (previous run: 3023, \u0394 +0) \u2014 \u2713 PASS\n\u23f1\ufe0f Freshness check: refreshed 0.0 min ago (threshold: 20 min) \u2014 \u2713 PASS\n\ud83d\udcca Last read: 3,023 rows \u2014 \u2705 Valid", "answer": "11 delayed flights listed with flight_num/airline/scheduled_dt", "calculated_count": 11, "validator_recount": 11, "validator_pass": true, "output_type": "table", "output_title": "List the delayed flights with full details", "output_explanation": "A table is best for top/list/detail requests and exact-value comparison.", "stage_times_sec": {"refresh": 0.0032, "validation": 0.0212, "calculate": 0.0053, "validate_answer": 0.0056, "design_output": 0.0}, "total_elapsed_sec": 0.0353}];
+
+const CATEGORY_COLOR = {
+  "🔢 Total Count": "var(--s-blue)",
+  "✈️ Flight Status": "var(--s-aqua)",
+  "🌍 Destination / Country": "var(--s-yellow)",
+  "🏢 Airline": "var(--s-green)",
+  "📅 Date Range": "var(--s-violet)",
+  "🔍 Custom / Other": "var(--s-red)",
+};
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+// ---- KPI row ----
+const total = DATA.length;
+const passCount = DATA.filter(d => d.validator_pass).length;
+const cacheCount = DATA.filter(d => d.source_path.startsWith("cache")).length;
+const liveCount = total - cacheCount;
+const cacheTimes = DATA.filter(d => d.source_path.startsWith("cache")).map(d => d.total_elapsed_sec);
+const avgCache = cacheTimes.reduce((a,b)=>a+b,0) / cacheTimes.length;
+const liveTimes = DATA.filter(d => !d.source_path.startsWith("cache")).map(d => d.total_elapsed_sec);
+const avgLive = liveTimes.reduce((a,b)=>a+b,0) / liveTimes.length;
+const uniqueOutputs = new Set(DATA.map(d => d.output_type)).size;
+
+const kpis = [
+  { value: total, label: "Questions tested" },
+  { value: `${passCount}/${total}`, label: "data-validator PASS", good: true },
+  { value: `${cacheCount} cache / ${liveCount} live`, label: "refresh source split" },
+  { value: `${Math.round(avgCache*1000)} ms`, label: "avg backend time — cache hit" },
+  { value: `${avgLive.toFixed(2)} s`, label: "avg backend time — live API fetch" },
+  { value: `${uniqueOutputs}/7`, label: "distinct output types produced", good: uniqueOutputs === 7 },
+];
+const kpiRow = document.getElementById("kpi-row");
+kpis.forEach(k => {
+  const c = el("div", "kpi");
+  c.appendChild(el("div", "value" + (k.good ? " good" : ""), k.value));
+  c.appendChild(el("div", "label", k.label));
+  kpiRow.appendChild(c);
+});
+
+// ---- Time bar chart (log scale) ----
+const timeChart = document.getElementById("time-chart");
+const times = DATA.map(d => d.total_elapsed_sec);
+const logMax = Math.log10(Math.max(...times) * 1.1);
+const logMin = Math.log10(Math.min(...times) * 0.9);
+DATA.forEach(d => {
+  const row = el("div", "bar-row");
+  row.appendChild(el("div", "bar-label", `#${d.id} ${d.question.length > 38 ? d.question.slice(0,36)+"…" : d.question}`));
+  const track = el("div", "bar-track");
+  const isLive = !d.source_path.startsWith("cache");
+  const logVal = Math.log10(d.total_elapsed_sec);
+  const pct = Math.max(2, ((logVal - logMin) / (logMax - logMin)) * 100);
+  const fill = el("div", "bar-fill");
+  fill.style.width = pct + "%";
+  fill.style.background = isLive ? "var(--s-orange)" : "var(--s-blue)";
+  track.appendChild(fill);
+  row.appendChild(track);
+  row.appendChild(el("div", "bar-value", d.total_elapsed_sec >= 1 ? d.total_elapsed_sec.toFixed(2)+"s" : Math.round(d.total_elapsed_sec*1000)+"ms"));
+  timeChart.appendChild(row);
+});
+
+// ---- Category chart ----
+const catChart = document.getElementById("category-chart");
+const catCounts = {};
+DATA.forEach(d => { catCounts[d.category] = (catCounts[d.category] || 0) + 1; });
+const maxCat = Math.max(...Object.values(catCounts));
+Object.keys(CATEGORY_COLOR).forEach(cat => {
+  const count = catCounts[cat] || 0;
+  const row = el("div", "bar-row");
+  row.appendChild(el("div", "bar-label", cat));
+  const track = el("div", "bar-track");
+  const fill = el("div", "bar-fill");
+  fill.style.width = (count ? (count / maxCat) * 100 : 0) + "%";
+  fill.style.background = CATEGORY_COLOR[cat];
+  track.appendChild(fill);
+  row.appendChild(track);
+  row.appendChild(el("div", "bar-value", String(count)));
+  catChart.appendChild(row);
+});
+
+// ---- Output-type chart ----
+const OUTPUT_COLOR = {
+  "kpi_cards": "var(--s-blue)",
+  "table": "var(--s-aqua)",
+  "bar_chart": "var(--s-yellow)",
+  "donut_chart": "var(--s-green)",
+  "line_chart": "var(--s-violet)",
+  "stacked_bar_chart": "var(--s-red)",
+  "map_animation": "var(--s-orange)",
+};
+const outputChart = document.getElementById("output-chart");
+const outCounts = {};
+DATA.forEach(d => { outCounts[d.output_type] = (outCounts[d.output_type] || 0) + 1; });
+const maxOut = Math.max(...Object.values(outCounts));
+Object.keys(OUTPUT_COLOR).forEach(type => {
+  const count = outCounts[type] || 0;
+  const row = el("div", "bar-row");
+  row.appendChild(el("div", "bar-label", type));
+  const track = el("div", "bar-track");
+  const fill = el("div", "bar-fill");
+  fill.style.width = (count ? (count / maxOut) * 100 : 0) + "%";
+  fill.style.background = OUTPUT_COLOR[type];
+  track.appendChild(fill);
+  row.appendChild(track);
+  row.appendChild(el("div", "bar-value", String(count)));
+  outputChart.appendChild(row);
+});
+
+// ---- Detail table ----
+const tbody = document.querySelector("#detail-table tbody");
+DATA.forEach(d => {
+  const tr = el("tr");
+  const isLive = !d.source_path.startsWith("cache");
+  tr.appendChild(el("td", "mono", String(d.id)));
+  tr.appendChild(el("td", null, d.question));
+  tr.appendChild(el("td", null, d.category));
+  const followupCell = el("td");
+  const ul = el("ul", "followup-list");
+  d.followup.forEach(f => ul.appendChild(el("li", null, f)));
+  followupCell.appendChild(ul);
+  followupCell.appendChild(el("div", null, `<span style="color:var(--text-muted)">params:</span> ${d.params_summary}`));
+  tr.appendChild(followupCell);
+  tr.appendChild(el("td", null, `<span class="pill pass">✓ VALID</span><div style="margin-top:4px;color:var(--text-muted)">calc ${d.calculated_count} = recount ${d.validator_recount}</div>`));
+  tr.appendChild(el("td", null, `<span class="pill ${isLive ? 'live' : 'cache'}">${isLive ? 'live API' : 'cache'}</span>`));
+  tr.appendChild(el("td", null, `<strong>${d.answer}</strong>`));
+  tr.appendChild(el("td", null, `<span class="swatch" style="background:${OUTPUT_COLOR[d.output_type]||'var(--text-muted)'}"></span> ${d.output_type}`));
+  tr.appendChild(el("td", "mono", d.total_elapsed_sec >= 1 ? d.total_elapsed_sec.toFixed(2)+"s" : Math.round(d.total_elapsed_sec*1000)+"ms"));
+  tbody.appendChild(tr);
+});
+</script>

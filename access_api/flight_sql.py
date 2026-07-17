@@ -1,10 +1,12 @@
 import argparse
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from access_api.datagovil_client import get_records
+from access_api.data_freshness import get_data_last_updated
 from access_api.flight_rename_rows import export_to_csv_with_rename, get_column_metadata, FLIGHT_COLUMNS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +17,9 @@ DEFAULT_DB_PATH = ROOT / "data" / "flights.sqlite3"
 # The dataset's own description says it refreshes every 15 minutes.
 LIVE_FLIGHTS_RESOURCE_ID = "e83f763b-b7d7-479e-b172-ae981ddc6de5"
 LIVE_FETCH_PAGE_SIZE = 1000
+# Matches the source's own refresh cadence — re-fetching live within this
+# window can't return anything new, so a fresh local snapshot is reused.
+LIVE_CACHE_MINUTES = 15
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS flights (
@@ -112,6 +117,21 @@ def _fetch_all_live_records(
     return records
 
 
+def _is_live_cache_fresh(
+    csv_path: Union[Path, str],
+    db_path: Union[Path, str],
+    cache_minutes: int,
+) -> bool:
+    """Whether the existing CSV/DB snapshot is still within the live-fetch
+    cache window, so a fresh network pull would be redundant."""
+    info = get_data_last_updated(csv_path=csv_path, db_path=db_path)
+    if not info["last_updated"]:
+        return False
+    updated_dt = datetime.fromisoformat(info["last_updated"])
+    age_minutes = (datetime.now(timezone.utc) - updated_dt).total_seconds() / 60
+    return age_minutes <= cache_minutes
+
+
 def load_flights_live(
     db_path: Optional[Union[Path, str]] = DEFAULT_DB_PATH,
     resource_id: str = LIVE_FLIGHTS_RESOURCE_ID,
@@ -181,6 +201,7 @@ def import_and_export_flights(
     source: str = "json",
     resource_id: str = LIVE_FLIGHTS_RESOURCE_ID,
     page_size: int = LIVE_FETCH_PAGE_SIZE,
+    cache_minutes: int = LIVE_CACHE_MINUTES,
 ) -> Path:
     """Import flight data into SQLite and export a renamed CSV in one step.
 
@@ -188,8 +209,18 @@ def import_and_export_flights(
     static sample JSON via `json_path`. source="live" ignores `json_path` and
     fetches the current flight board from the live data.gov.il feed instead —
     this is what the CLI and the ask-data pipeline use by default.
+
+    For source="live", the network fetch is skipped (returning the existing
+    CSV as-is) if the current snapshot is younger than `cache_minutes` — the
+    live feed itself only refreshes every 15 minutes, so re-fetching within
+    that window can't return anything new.
     """
+    if csv_path is None:
+        csv_path = Path(db_path).parent / "flights.csv"
+
     if source == "live":
+        if _is_live_cache_fresh(csv_path, db_path, cache_minutes):
+            return Path(csv_path)
         db_path = load_flights_live(db_path=db_path, resource_id=resource_id, page_size=page_size)
     else:
         db_path = load_flights(json_path=json_path, db_path=db_path)
