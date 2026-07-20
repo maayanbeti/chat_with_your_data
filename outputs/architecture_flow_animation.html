@@ -1,0 +1,532 @@
+<title>Flight Data Agent — Architecture Flow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --page: #f2f0ec;
+    --card: #ffffff;
+    --border: #e2ded7;
+    --text-primary: #1a1a17;
+    --text-secondary: #57544d;
+    --text-muted: #9c988f;
+    --orange: #c17d2e;
+    --orange-soft: rgba(193,125,46,0.14);
+    --orange-border: #d99a4f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+
+  .stage {
+    position: relative;
+    width: min(96vw, 1180px);
+    aspect-ratio: 16 / 10;
+    background: var(--page);
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.18);
+    overflow: hidden;
+    padding: 34px 44px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header { flex: 0 0 auto; opacity: 0; transition: opacity .5s ease; }
+  .header.show { opacity: 1; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.16em; color: var(--orange); font-weight: 700; margin-bottom: 8px; }
+  .title { font-size: 30px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .desc { font-size: 14px; color: var(--text-secondary); max-width: 760px; line-height: 1.4; }
+
+  .diagram-wrap {
+    flex: 1; margin-top: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+    opacity: 0; transition: opacity .6s ease;
+    min-height: 0;
+  }
+  .diagram-wrap.show { opacity: 1; }
+
+  /* full-clarity pass: the whole flow shown at full strength before the
+     step-by-step spotlight starts dimming everything else */
+  .diagram-wrap.reveal-all .card,
+  .diagram-wrap.reveal-all .terminal { opacity: 1; }
+
+  .container {
+    position: relative;
+    border: 2px dashed var(--orange-border);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(217,154,79,0.06), transparent 40%);
+    padding: 22px 22px 16px;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .container-label {
+    position: absolute; top: -11px; left: 20px; background: var(--page);
+    padding: 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-primary);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .container-label .bullet-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); display: inline-block; }
+  .container-src {
+    position: absolute; top: -11px; right: 20px; background: var(--page);
+    padding: 0 8px; font-size: 11px; color: var(--text-muted); font-family: ui-monospace, monospace;
+  }
+
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: stretch; }
+
+  .connector-row { display: grid; grid-template-columns: repeat(4, 1fr); margin: 6px 0; }
+
+  .card {
+    position: relative;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 14px 15px; display: flex; flex-direction: column;
+    transition: opacity .4s ease, transform .4s ease, box-shadow .4s ease, border-color .4s ease;
+    opacity: 0.32;
+  }
+  .card.decision { border-color: var(--border); }
+  .card .num-type {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px;
+    display: flex; justify-content: space-between;
+  }
+  .card .num-type .type-decision { color: var(--orange); }
+  .card .name { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+  .card .body { font-size: 11.5px; color: var(--text-secondary); line-height: 1.35; flex: 1; }
+  .card .file { font-size: 10px; color: var(--text-muted); font-family: ui-monospace, monospace; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+  .card.active {
+    opacity: 1; transform: scale(1.035);
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px var(--orange-soft), 0 14px 30px rgba(193,125,46,0.22);
+    z-index: 5;
+  }
+  .card.decision.active { border-width: 2px; }
+
+  .terminal {
+    grid-column: 1; background: var(--orange); color: white; border-radius: 46% 54% 52% 48% / 55% 45% 55% 45%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    padding: 18px; opacity: 0.32; transition: opacity .4s ease, transform .4s ease, box-shadow .4s ease;
+  }
+  .terminal .num-type { color: rgba(255,255,255,0.75); }
+  .terminal .name { font-size: 16px; }
+  .terminal .body { color: rgba(255,255,255,0.85); font-size: 11.5px; }
+  .terminal.active { opacity: 1; transform: scale(1.04); box-shadow: 0 14px 34px rgba(193,125,46,0.35); }
+
+  .vconnector {
+    grid-column: 4; text-align: center;
+    font-size: 20px; color: var(--text-muted); opacity: 0.3; transition: opacity .4s ease, color .4s ease;
+  }
+  .vconnector.lit { opacity: 1; color: var(--orange); }
+
+  .callout {
+    flex: 0 0 auto; min-height: 104px;
+    background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--orange);
+    border-radius: 0 10px 10px 0; padding: 14px 22px;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .4s ease, transform .4s ease;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.14);
+  }
+  .callout.show { opacity: 1; transform: translateY(0); }
+  .callout .co-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .callout .co-title .co-num { color: var(--orange); margin-right: 6px; }
+  .callout ul { margin: 0; padding-left: 18px; }
+  .callout li { font-size: 13px; color: var(--text-secondary); margin-bottom: 2px; line-height: 1.4; }
+
+  .progress { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 20; }
+  .progress .d { width: 6px; height: 6px; border-radius: 50%; background: rgba(0,0,0,0.15); transition: background .2s, transform .2s; }
+  .progress .d.active { background: var(--orange); transform: scale(1.3); }
+
+  .hint {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 12.5px; color: #8a8880; text-align: center; max-width: 620px;
+  }
+
+  /* hook intro — fast, punchy hype build before the "boom" cut into the diagram */
+  .hook-layer {
+    position: absolute; inset: 0; z-index: 30;
+    background: var(--page);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 0 24px;
+    opacity: 1; transition: opacity .35s ease;
+  }
+  .hook-layer.hide { opacity: 0; pointer-events: none; }
+
+  /* Only the active beat is laid out — others are display:none so they
+     contribute zero height and never push the visible beat off-center. */
+  .hook-beat {
+    display: none;
+    flex-direction: column; align-items: center;
+    width: 100%;
+  }
+  .hook-beat.active { display: flex; }
+
+  .hook-title {
+    font-size: 40px; font-weight: 800; line-height: 1.25; color: var(--text-primary);
+    margin-bottom: 14px; max-width: 780px;
+    opacity: 0; transform: scale(0.82);
+    transition: opacity .4s cubic-bezier(.2,.9,.25,1.5), transform .4s cubic-bezier(.2,.9,.25,1.5);
+  }
+  .hook-title.show { opacity: 1; transform: scale(1); }
+  .hook-sub {
+    font-size: 17px; color: var(--text-secondary); font-style: italic;
+    opacity: 0; transition: opacity .4s ease;
+  }
+  .hook-sub.show { opacity: 1; }
+
+  .hook-label {
+    font-size: 13px; letter-spacing: 0.16em; font-weight: 700; color: var(--orange);
+    margin-bottom: 20px; opacity: 0; transition: opacity .3s ease;
+  }
+  .hook-label.show { opacity: 1; }
+
+  .lesson-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+  .lesson-line {
+    font-size: 24px; font-weight: 700; color: var(--text-primary);
+    opacity: 0; transform: translateY(12px);
+    transition: opacity .35s cubic-bezier(.2,.9,.25,1.5), transform .35s cubic-bezier(.2,.9,.25,1.5);
+  }
+  .lesson-line.show { opacity: 1; transform: translateY(0); }
+  .lesson-line .hl { color: var(--orange); }
+
+  .concept-row { display: flex; align-items: center; gap: 5px; justify-content: center; width: 100%; }
+  .concept-pill {
+    font-size: 12.5px; font-weight: 800; padding: 8px 12px; border-radius: 999px;
+    background: var(--orange); color: white; white-space: nowrap;
+    opacity: 0; transform: scale(0.4) translateY(10px);
+    transition: opacity .32s cubic-bezier(.2,.9,.25,1.7), transform .32s cubic-bezier(.2,.9,.25,1.7);
+    box-shadow: 0 8px 20px rgba(193,125,46,0.3);
+  }
+  .concept-pill.pop { opacity: 1; transform: scale(1) translateY(0); }
+  .concept-arrow {
+    font-size: 15px; color: var(--text-muted); flex: 0 0 auto;
+    opacity: 0; transition: opacity .25s ease;
+  }
+  .concept-arrow.show { opacity: 1; }
+
+  .boom-flash {
+    position: absolute; inset: 0; z-index: 40;
+    background: var(--orange); opacity: 0; pointer-events: none;
+  }
+  .boom-flash.flash { animation: boomFlash .55s ease-out; }
+  @keyframes boomFlash {
+    0% { opacity: 0; }
+    18% { opacity: 0.92; }
+    100% { opacity: 0; }
+  }
+</style>
+
+<div class="stage" id="stage">
+  <div class="hook-layer" id="hook-layer">
+    <div class="hook-beat active" id="beat-1">
+      <div class="hook-title" id="hook-title-1">We learned to build a real AI agent</div>
+      <div class="hook-sub" id="hook-sub-1">3 sessions. Hands-on practice in between.</div>
+    </div>
+
+    <div class="hook-beat" id="beat-2">
+      <div class="hook-label" id="hook-label-2">FIRST THING WE LEARNED</div>
+      <div class="hook-sub" id="hook-sub-2">A good, deterministic agent isn't built in two hours and forgotten.</div>
+      <div class="lesson-stack" id="lesson-stack">
+        <div class="lesson-line" id="lesson-1">You build the <span class="hl">flow</span>.</div>
+        <div class="lesson-line" id="lesson-2">You build the <span class="hl">skills</span>.</div>
+        <div class="lesson-line" id="lesson-3">You <span class="hl">validate</span> every answer.</div>
+        <div class="lesson-line" id="lesson-4">You <span class="hl">evaluate</span> the results.</div>
+      </div>
+    </div>
+
+    <div class="hook-beat" id="beat-3">
+      <div class="hook-label" id="hook-label">THE GENERAL IDEA, IN ONE PIPELINE</div>
+      <div class="concept-row" id="concept-row"></div>
+    </div>
+
+    <div class="hook-beat" id="beat-4">
+      <div class="hook-label" id="hook-label-3">OUR ARCHITECTURE</div>
+      <div class="hook-title" id="hook-title-3" style="font-size:34px">Not perfect. But it works.</div>
+      <div class="hook-sub" id="hook-sub-3">Our pilot agent — just an example of a simple agent built for course practice.</div>
+    </div>
+  </div>
+  <div class="boom-flash" id="boom-flash"></div>
+
+  <div class="header" id="header">
+    <div class="eyebrow">FLIGHT DATA AGENT</div>
+    <div class="title">Architecture — live query pipeline</div>
+    <div class="desc">Every question re-enters at Stage 1. Source: data.gov.il Ben Gurion flight board — a live datastore refreshing roughly every 15 minutes.</div>
+  </div>
+
+  <div class="diagram-wrap" id="diagram-wrap">
+    <div class="container">
+      <div class="container-label"><span class="bullet-dot"></span>MASTER WORKFLOW — ORCHESTRATOR</div>
+      <div class="container-src">.github/agents/master-workflow.agent.md</div>
+
+      <div class="row top">
+        <div class="card" id="card-1">
+          <div class="num-type"><span>01 · PROCESS</span></div>
+          <div class="name">Live refresh</div>
+          <div class="body">Pull the current flight board from the data.gov.il API into SQLite, export a renamed CSV.</div>
+          <div class="file">flight_sql.py · import_and_export_flights()</div>
+        </div>
+        <div class="card decision" id="card-2">
+          <div class="num-type"><span>02 ·</span> <span class="type-decision">DECISION GATE 1</span></div>
+          <div class="name">Data health check</div>
+          <div class="body">Row-count Δ vs. previous run + a 20-min freshness window. Both must pass.</div>
+          <div class="file">data_freshness.py · validate_data_health()</div>
+        </div>
+        <div class="card" id="card-3">
+          <div class="num-type"><span>03 · PROCESS</span></div>
+          <div class="name">Clarification form</div>
+          <div class="body">Blocking, in-chat: pick a category, then answer that category's date/status/filter questions.</div>
+          <div class="file">clarification-flight skill</div>
+        </div>
+        <div class="card" id="card-4">
+          <div class="num-type"><span>04 · PROCESS</span></div>
+          <div class="name">Filter &amp; compute</div>
+          <div class="body">Rename/mirror columns and apply the chosen filters.</div>
+          <div class="file">flight_rename_rows.py · flight_duration.py</div>
+        </div>
+      </div>
+
+      <div class="connector-row"><div class="vconnector" id="vconnector">↓</div></div>
+
+      <div class="row bottom">
+        <div class="terminal" id="card-8">
+          <div class="num-type"><span>08 · END</span></div>
+          <div class="name">Answer delivered</div>
+          <div class="body">Validated, chart-rendered response shown to the user.</div>
+        </div>
+        <div class="card" id="card-7">
+          <div class="num-type"><span>07 · PROCESS</span></div>
+          <div class="name">Freshness footer</div>
+          <div class="body">Appends "data last updated" — non-blocking, always runs.</div>
+          <div class="file">data_freshness.py · get_data_last_updated()</div>
+        </div>
+        <div class="card" id="card-6">
+          <div class="num-type"><span>06 · PROCESS</span></div>
+          <div class="name">Design output</div>
+          <div class="body">Rule-based selection of bar / donut / line / KPI / table — no extra model call.</div>
+          <div class="file">design_output.py</div>
+        </div>
+        <div class="card decision" id="card-5">
+          <div class="num-type"><span>05 ·</span> <span class="type-decision">DECISION GATE 2</span></div>
+          <div class="name">Validator</div>
+          <div class="body">Independently recounts the same filters from the CSV and compares against the calculated answer.</div>
+          <div class="file">data-validator skill</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" id="callout"></div>
+  </div>
+
+  <div class="progress" id="progress"></div>
+</div>
+
+<script>
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const $ = id => document.getElementById(id);
+
+const STEPS = [
+  {
+    id: 1, title: "01 · Live refresh",
+    bullets: [
+      "Pulls the live flight board from data.gov.il into SQLite",
+      "Uses caching: skips the network call if the snapshot is under 15 min old",
+      "Exports a clean, renamed CSV for the rest of the pipeline",
+    ],
+  },
+  {
+    id: 2, title: "02 · Data health check",
+    bullets: [
+      "Compares row count against the previous run",
+      "Confirms the data is under 20 minutes old",
+      "Invalid → retries Stage 1 instead of answering on bad data",
+    ],
+  },
+  {
+    id: 3, title: "03 · Clarification form",
+    bullets: [
+      "A skill — a self-contained set of instructions for one specific job",
+      "Blocks the agent until the user picks a category",
+      "Asks only that category's follow-up questions, never guesses intent",
+    ],
+  },
+  {
+    id: 4, title: "04 · Filter & compute",
+    bullets: [
+      "Renames/mirrors columns and applies the chosen filters",
+      "Duration mirrors only regenerate when the source CSV changes",
+      "Produces the calculated answer — not shown to the user yet",
+    ],
+  },
+  {
+    id: 5, title: "05 · Validator", useConnector: true,
+    bullets: [
+      "Another skill — and a deterministic check, not a scoring eval",
+      "Independently recounts the same filters straight from the CSV",
+      "Invalid → retries Stage 3 instead of showing a wrong number",
+    ],
+  },
+  {
+    id: 6, title: "06 · Design output",
+    bullets: [
+      "Picks bar / donut / line / KPI / table from the question's phrasing",
+      "Rule-based — no extra model call needed",
+      "Same answer, always rendered as the right visual, never plain text",
+    ],
+  },
+  {
+    id: 7, title: "07 · Freshness footer",
+    bullets: [
+      "Appends \"data last updated\" to every response",
+      "Non-blocking — always runs, regardless of category",
+      "Keeps the user aware of exactly how current the data is",
+    ],
+  },
+  {
+    id: 8, title: "08 · Answer delivered",
+    bullets: [
+      "Validated, chart-rendered response shown to the user",
+      "Every question re-enters at Stage 1 — no shortcuts",
+      "Accuracy is architected in, not bolted on afterward",
+    ],
+  },
+];
+
+function setProgress(idx) {
+  const wrap = $("progress");
+  wrap.innerHTML = "";
+  STEPS.forEach((_, i) => {
+    const d = document.createElement("div");
+    d.className = "d" + (i === idx ? " active" : "");
+    wrap.appendChild(d);
+  });
+}
+
+function clearActive() {
+  document.querySelectorAll(".card, .terminal").forEach(el => el.classList.remove("active"));
+  $("vconnector").classList.remove("lit");
+}
+
+const CONCEPTS = ["DB", "Data Health Check", "Clarification", "Deterministic Validation", "Design Output", "Offline Evals"];
+
+function switchBeat(fromId, toId) {
+  if (fromId) $(fromId).classList.remove("active");
+  if (toId) $(toId).classList.add("active");
+}
+
+async function playHook() {
+  // beat 1 is already .active in the markup
+  $("hook-title-1").classList.add("show");
+  await sleep(300);
+  $("hook-sub-1").classList.add("show");
+  await sleep(2400);
+
+  $("hook-title-1").classList.remove("show");
+  $("hook-sub-1").classList.remove("show");
+  await sleep(350);
+  switchBeat("beat-1", "beat-2");
+
+  $("hook-label-2").classList.add("show");
+  await sleep(400);
+  $("hook-sub-2").classList.add("show");
+  await sleep(2200);
+  $("lesson-1").classList.add("show");
+  await sleep(1300);
+  $("lesson-2").classList.add("show");
+  await sleep(1300);
+  $("lesson-3").classList.add("show");
+  await sleep(1300);
+  $("lesson-4").classList.add("show");
+  await sleep(4200);
+
+  $("hook-label-2").classList.remove("show");
+  $("hook-sub-2").classList.remove("show");
+  $("lesson-1").classList.remove("show");
+  $("lesson-2").classList.remove("show");
+  $("lesson-3").classList.remove("show");
+  $("lesson-4").classList.remove("show");
+  await sleep(500);
+  switchBeat("beat-2", "beat-3");
+
+  $("hook-label").classList.add("show");
+  await sleep(250);
+
+  const row = $("concept-row");
+  row.innerHTML = "";
+  for (let i = 0; i < CONCEPTS.length; i++) {
+    const pill = document.createElement("div");
+    pill.className = "concept-pill";
+    pill.textContent = CONCEPTS[i];
+    row.appendChild(pill);
+    void pill.offsetWidth;
+    pill.classList.add("pop");
+    await sleep(300);
+    if (i < CONCEPTS.length - 1) {
+      const arrow = document.createElement("div");
+      arrow.className = "concept-arrow";
+      arrow.textContent = "→";
+      row.appendChild(arrow);
+      void arrow.offsetWidth;
+      arrow.classList.add("show");
+      await sleep(150);
+    }
+  }
+  await sleep(1500);
+
+  $("hook-label").classList.remove("show");
+  row.innerHTML = "";
+  await sleep(400);
+  switchBeat("beat-3", "beat-4");
+
+  $("hook-label-3").classList.add("show");
+  await sleep(300);
+  $("hook-title-3").classList.add("show");
+  await sleep(300);
+  $("hook-sub-3").classList.add("show");
+  await sleep(5200);
+
+  $("boom-flash").classList.add("flash");
+  $("hook-layer").classList.add("hide");
+  await sleep(550);
+}
+
+async function playOnce() {
+  await playHook();
+
+  $("header").classList.add("show");
+  await sleep(300);
+  $("diagram-wrap").classList.add("show");
+  $("diagram-wrap").classList.add("reveal-all");
+  await sleep(3200);
+  $("diagram-wrap").classList.remove("reveal-all");
+  await sleep(500);
+
+  const callout = $("callout");
+  for (let i = 0; i < STEPS.length; i++) {
+    setProgress(i);
+    const step = STEPS[i];
+    clearActive();
+    callout.classList.remove("show");
+    await sleep(400);
+
+    $(`card-${step.id}`).classList.add("active");
+    if (step.useConnector) $("vconnector").classList.add("lit");
+    await sleep(700);
+
+    callout.innerHTML = `<div class="co-title"><span class="co-num">${step.title.split(" · ")[0]}</span>${step.title.split(" · ")[1]}</div>
+      <ul>${step.bullets.map(b => `<li>${b}</li>`).join("")}</ul>`;
+    void callout.offsetWidth;
+    callout.classList.add("show");
+    await sleep(7200);
+  }
+
+  clearActive();
+  callout.classList.remove("show");
+  await sleep(800);
+  window.__demoDone = true;
+}
+
+window.__demoDone = false;
+playOnce();
+</script>
+
+<p class="hint">Plays once and stops, silent — record this window (QuickTime/CapCut) to attach to your LinkedIn post.</p>
